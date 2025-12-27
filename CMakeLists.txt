@@ -16,4 +16,10 @@ set(SOURCES
 )
 
 # 실행 파일 생성
-add_executable(fe_system ${SOURCES})
+add_executable(fe_system 
+    src/main.c 
+    src/fe_core.c 
+    src/bch_wrapper.c
+    src/fe_api.c        
+    lib/bch.c
+)
