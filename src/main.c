@@ -4,29 +4,38 @@
 #include <time.h>
 #include <stdint.h>
 #include "fe_core.h"
+#include "bch_wrapper.h" // 파라미터(SYS_T, FE_DATA_BYTES 등) 사용
 
-// 터미널 색상 출력
-#define COLOR_GREEN "\033[0;32m"
-#define COLOR_RED   "\033[0;31m"
-#define COLOR_BLUE  "\033[0;34m"
-#define COLOR_RESET "\033[0m"
+// 테스트 반복 횟수 (횟수가 클수록 통계가 정확해짐)
+#define NUM_TRIALS 1000
 
-// 랜덤 데이터 생성
+// 색상 매크로
+#define COL_RED     "\033[1;31m"
+#define COL_GREEN   "\033[1;32m"
+#define COL_YELLOW  "\033[1;33m"
+#define COL_CYAN    "\033[1;36m"
+#define COL_RESET   "\033[0m"
+
+/* =================================================================
+ * [유틸리티] 랜덤 데이터 생성 및 노이즈 주입
+ * ================================================================= */
 void generate_random_data(uint8_t *data, int len) {
     for (int i = 0; i < len; i++) {
         data[i] = rand() & 0xFF;
     }
 }
 
-// 노이즈 주입 함수 (정확히 error_bits 개수만큼 비트 반전)
-void inject_noise(uint8_t *data, int total_bytes, int error_bits) {
+// 정확히 error_cnt 개수만큼 비트를 랜덤하게 뒤집음
+void inject_exact_noise(uint8_t *data, int total_bytes, int error_cnt) {
+    if (error_cnt <= 0) return;
+
     int max_bits = total_bytes * 8;
     int *indices = (int *)malloc(sizeof(int) * max_bits);
     
-    // 인덱스 배열 초기화
+    // 0 ~ max_bits-1 인덱스 생성
     for(int i=0; i<max_bits; i++) indices[i] = i;
 
-    // Fisher-Yates Shuffle (비트 위치 섞기)
+    // Fisher-Yates Shuffle (인덱스 섞기)
     for (int i = max_bits - 1; i > 0; i--) {
         int j = rand() % (i + 1);
         int temp = indices[i];
@@ -34,109 +43,108 @@ void inject_noise(uint8_t *data, int total_bytes, int error_bits) {
         indices[j] = temp;
     }
 
-    // 앞쪽 error_bits 개수만큼 선택해서 비트 반전 (XOR)
-    for (int i = 0; i < error_bits; i++) {
+    // 앞쪽에서 error_cnt 개수만큼 골라서 비트 반전
+    for (int i = 0; i < error_cnt; i++) {
         int bit_idx = indices[i];
-        int byte_idx = bit_idx / 8;
-        int bit_pos = bit_idx % 8;
-        data[byte_idx] ^= (1 << bit_pos);
+        data[bit_idx / 8] ^= (1 << (bit_idx % 8));
     }
 
     free(indices);
 }
 
-void run_test_case(int test_id, int error_count) {
-    // 크기는 bch_wrapper.h의 define에 따라 자동 결정됨 (3488 bits / 436 bytes)
-    uint8_t bio_original[FE_DATA_BYTES];
-    uint8_t bio_noisy[FE_DATA_BYTES];
-    uint8_t helper[FE_ECC_BYTES];
-    FE_Key key_gen, key_rep;
+/* =================================================================
+ * [통계 테스트] 지정된 에러 개수에 대해 N번 반복 수행
+ * ================================================================= */
+void run_statistical_test(int error_cnt) {
+    int success_cnt = 0;      // 복구 성공 & 키 일치
+    int fail_cnt = 0;         // 복구 실패 (Rep가 -1 반환)
+    int false_accept_cnt = 0; // 위험! 복구 성공했으나 키가 다름 (오인식)
 
-    // 1. 랜덤 생체 데이터 생성
-    generate_random_data(bio_original, FE_DATA_BYTES);
+    uint8_t w_org[FE_DATA_BYTES];   // 원본 생체정보
+    uint8_t w_noisy[FE_DATA_BYTES]; // 노이즈 낀 생체정보
+    uint8_t helper[FE_ECC_BYTES];   // 헬퍼 데이터
+    FE_Key key_org, key_rec;        // 원본 키, 복구된 키
 
-    // 2. 등록 (Gen)
-    FE_Gen(bio_original, helper, &key_gen);
+    for (int i = 0; i < NUM_TRIALS; i++) {
+        // 1. 랜덤 생체정보 생성 및 등록(Gen)
+        generate_random_data(w_org, FE_DATA_BYTES);
+        FE_Gen(w_org, helper, &key_org);
 
-    // 3. 노이즈 주입
-    memcpy(bio_noisy, bio_original, FE_DATA_BYTES);
-    inject_noise(bio_noisy, FE_DATA_BYTES, error_count);
+        // 2. 노이즈 주입 (복사본에 수행)
+        memcpy(w_noisy, w_org, FE_DATA_BYTES);
+        inject_exact_noise(w_noisy, FE_DATA_BYTES, error_cnt);
 
-    // 4. 복구 시도 (Rep)
-    int result = FE_Rep(bio_noisy, helper, &key_rep);
+        // 3. 복구 시도(Rep)
+        int res = FE_Rep(w_noisy, helper, &key_rec);
 
-    // 5. 검증
-    int is_key_match = (memcmp(key_gen.key, key_rep.key, FE_KEY_LEN) == 0);
-    // SYS_T(64)개 이하면 성공해야 정상
-    int expected_success = (error_count <= SYS_T); 
-
-    printf("Test #%02d | Errors: %3d | ", test_id, error_count);
-
-    if (expected_success) {
-        // [성공해야 하는 구간] (0 ~ 64 에러)
-        if (result >= 0 && is_key_match) {
-            printf(COLOR_GREEN "[PASS]" COLOR_RESET " Corrected %d bits (Keys Match)\n", result);
+        // 4. 결과 판별
+        if (res < 0) {
+            // BCH가 "이건 못 고칩니다" 하고 포기함 (안전한 실패)
+            fail_cnt++;
         } else {
-            printf(COLOR_RED   "[FAIL]" COLOR_RESET " Expected Success but Failed (Ret: %d)\n", result);
+            // BCH가 고쳤다고 함. 진짜 맞게 고쳤는지 키 비교
+            if (memcmp(key_org.key, key_rec.key, FE_KEY_LEN) == 0) {
+                success_cnt++;
+            } else {
+                // BCH는 고쳤다고 했지만, 엉뚱한 값으로 고침 (위험한 상황)
+                false_accept_cnt++;
+            }
         }
+    }
+
+    // 결과 출력 (표 형식)
+    // 안전 구간(<=64)에서는 Success가 100%여야 함
+    // 위험 구간(>=65)에서는 Fail이 100%여야 함
+    printf("| %3d bits |  %4d  | " COL_GREEN "%5.1f%%" COL_RESET " | " COL_RED "%5.1f%%" COL_RESET " | ", 
+            error_cnt, NUM_TRIALS, 
+            (double)success_cnt / NUM_TRIALS * 100.0, 
+            (double)false_accept_cnt / NUM_TRIALS * 100.0);
+
+    // 상태 메시지 출력
+    if (error_cnt <= SYS_T) {
+        if (success_cnt == NUM_TRIALS) printf(COL_CYAN "[PERFECT]" COL_RESET "\n");
+        else printf(COL_RED "[WARNING]" COL_RESET "\n");
     } else {
-        // [실패해야 하는 구간] (65개 이상 에러)
-        if (result < 0 || !is_key_match) {
-            printf(COLOR_BLUE  "[PASS]" COLOR_RESET " Expected Failure and it Failed safely.\n");
-        } else {
-            // 실패해야 하는데 성공했다면(키가 다르거나 복구됨) 위험!
-            printf(COLOR_RED   "[FAIL]" COLOR_RESET " Expected Failure but SUCCEEDED? (Dangerous!)\n");
-        }
+        if (false_accept_cnt > 0) printf(COL_RED "[DANGER: FAR]" COL_RESET "\n");
+        else printf(COL_YELLOW "[SAFE REJECT]" COL_RESET "\n");
     }
 }
 
 int main() {
-    srand(time(NULL)); // 매번 다른 랜덤값 사용
+    srand((unsigned int)time(NULL));
 
     if (FE_Init() < 0) {
-        printf("Init Failed\n");
+        printf("FE_Init Error!\n");
         return -1;
     }
 
-    printf("============================================================\n");
-    // PK_NCOLS = 3488, SYS_T = 64 가 출력되어야 함
-    printf("   Fuzzy Extractor Robustness Test\n");
-    printf("   - Input Data: %d bits (%d Bytes)\n", PK_NCOLS, FE_DATA_BYTES);
-    printf("   - Capability: Max %d bit errors\n", SYS_T);
-    printf("============================================================\n");
+    printf("\n========================================================================\n");
+    printf("   Fuzzy Extractor Statistical Analysis (N=%d Trials)\n", NUM_TRIALS);
+    printf("   - Input Size : %d bits (%d Bytes)\n", PK_NCOLS, FE_DATA_BYTES);
+    printf("   - Capability : Max %d bit errors correctable\n", SYS_T);
+    printf("========================================================================\n");
+    printf("|  Error   | Trials | Success | False%% |  Status  \n");
+    printf("|----------|--------|---------|--------|----------\n");
 
-    // [그룹 1] 안전 구간 (Safe Zone) - 100% 성공해야 함
-    printf("\n--- Group 1: Safe Zone (0 ~ 50 errors) ---\n");
-    run_test_case(1, 0);   // 에러 없음
-    run_test_case(2, 1);   // 1비트 에러
-    run_test_case(3, 5);
-    run_test_case(4, 10);
-    run_test_case(5, 20);
-    run_test_case(6, 30);
-    run_test_case(7, 40);
-    run_test_case(8, 45);
-    run_test_case(9, 50);
+    // 1. 안전 구간 테스트 (0 ~ 64비트) -> 모두 성공해야 함
+    int safe_tests[] = {0, 10, 30, 50, 60, 62, 63, 64};
+    for (int i = 0; i < 8; i++) {
+        run_statistical_test(safe_tests[i]);
+    }
 
-    // [그룹 2] 경계 구간 (Boundary Zone) - 64개까지 성공해야 함
-    printf("\n--- Group 2: Boundary (60 ~ 64 errors) ---\n");
-    run_test_case(10, 55);
-    run_test_case(11, 60);
-    run_test_case(12, 61);
-    run_test_case(13, 62);
-    run_test_case(14, 63);
-    run_test_case(15, 64); // ★ 여기가 한계점 (PASS 필수)
+    printf("|----------|--------|---------|--------|----------\n");
 
-    // [그룹 3] 실패 구간 (Fail Zone) - 65개부터는 실패해야 함
-    printf("\n--- Group 3: Over Limit (65+ errors) ---\n");
-    run_test_case(16, 65); // ★ 여기서부터 파란색 PASS(실패 확인) 떠야 함
-    run_test_case(17, 66);
-    run_test_case(18, 70);
-    run_test_case(19, 100);
-    run_test_case(20, 200);
+    // 2. 실패 구간 테스트 (65비트 이상) -> 모두 실패해야 함
+    // False% (오인식률)가 0%여야 안전한 시스템임
+    int fail_tests[] = {65, 66, 70, 80, 100};
+    for (int i = 0; i < 5; i++) {
+        run_statistical_test(fail_tests[i]);
+    }
 
-    printf("\n============================================================\n");
-    printf("Test Complete.\n");
-
+    printf("========================================================================\n");
+    printf(" * Success : Correctly recovered original key.\n");
+    printf(" * False%%  : Wrong key recovered (False Accept Rate). Should be 0%%.\n");
+    
     FE_Free();
     return 0;
 }
