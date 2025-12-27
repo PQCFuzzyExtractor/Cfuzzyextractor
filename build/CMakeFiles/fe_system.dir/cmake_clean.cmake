@@ -3,6 +3,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/fe_system.dir/lib/bch.c.obj.d"
   "CMakeFiles/fe_system.dir/src/bch_wrapper.c.obj"
   "CMakeFiles/fe_system.dir/src/bch_wrapper.c.obj.d"
+  "CMakeFiles/fe_system.dir/src/fe_api.c.obj"
+  "CMakeFiles/fe_system.dir/src/fe_api.c.obj.d"
   "CMakeFiles/fe_system.dir/src/fe_core.c.obj"
   "CMakeFiles/fe_system.dir/src/fe_core.c.obj.d"
   "CMakeFiles/fe_system.dir/src/main.c.obj"

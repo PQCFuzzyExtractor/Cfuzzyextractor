@@ -176,6 +176,30 @@ src/bch_wrapper.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\fe_system.dir\build.make CMakeFiles/fe_system.dir/src/bch_wrapper.c.s
 .PHONY : src/bch_wrapper.c.s
 
+src/fe_api.obj: src/fe_api.c.obj
+.PHONY : src/fe_api.obj
+
+# target to build an object file
+src/fe_api.c.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\fe_system.dir\build.make CMakeFiles/fe_system.dir/src/fe_api.c.obj
+.PHONY : src/fe_api.c.obj
+
+src/fe_api.i: src/fe_api.c.i
+.PHONY : src/fe_api.i
+
+# target to preprocess a source file
+src/fe_api.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\fe_system.dir\build.make CMakeFiles/fe_system.dir/src/fe_api.c.i
+.PHONY : src/fe_api.c.i
+
+src/fe_api.s: src/fe_api.c.s
+.PHONY : src/fe_api.s
+
+# target to generate assembly for a file
+src/fe_api.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\fe_system.dir\build.make CMakeFiles/fe_system.dir/src/fe_api.c.s
+.PHONY : src/fe_api.c.s
+
 src/fe_core.obj: src/fe_core.c.obj
 .PHONY : src/fe_core.obj
 
@@ -239,6 +263,9 @@ help:
 	@echo ... src/bch_wrapper.obj
 	@echo ... src/bch_wrapper.i
 	@echo ... src/bch_wrapper.s
+	@echo ... src/fe_api.obj
+	@echo ... src/fe_api.i
+	@echo ... src/fe_api.s
 	@echo ... src/fe_core.obj
 	@echo ... src/fe_core.i
 	@echo ... src/fe_core.s
