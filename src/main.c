@@ -6,6 +6,7 @@
 #include <windows.h> // 고정밀 타이머용 (Windows)
 
 #include "fe_api.h"
+#include "fe_core.h"      // ★ 중요! 이 줄이 있어야 FE_KEY_LEN 에러가 사라집니다.
 #include "bch_wrapper.h"
 
 // ---------------------------------------------------------
@@ -55,13 +56,12 @@ int compare_doubles(const void *a, const void *b) {
 void inject_random_noise(uint8_t *data, int len, int error_cnt) {
     if (error_cnt <= 0) return;
     
-    // 단순화를 위해 랜덤 위치 비트 반전 (중복 위치 허용 안함 로직 추가 가능하지만 성능상 단순화)
-    // 여기서는 정확한 개수를 위해 Fisher-Yates 셔플 방식 사용
+    // 단순화를 위해 랜덤 위치 비트 반전
     int total_bits = len * 8;
     int *indices = (int*)malloc(total_bits * sizeof(int));
     for(int i=0; i<total_bits; i++) indices[i] = i;
 
-    // 섞기
+    // Fisher-Yates Shuffle
     for(int i=total_bits-1; i>0; i--) {
         int j = rand() % (i+1);
         int t = indices[i]; indices[i] = indices[j]; indices[j] = t;
@@ -103,7 +103,7 @@ int main() {
 
         for (int t = 0; t < NUM_TRIALS; t++) {
             // A. 데이터 생성 및 등록 (Enroll)
-            // 매번 새로운 데이터로 실험 (캐시 효과 방지 및 일반화)
+            // 매번 새로운 데이터로 실험
             for(int i=0; i<FE_DATA_BYTES; i++) input[i] = rand() & 0xFF;
             fe_enroll(input, FE_DATA_BYTES, helper, &h_len, key_org, &k_len);
 
@@ -146,7 +146,6 @@ int main() {
         double stddev = sqrt(variance_sum / NUM_TRIALS);
 
         // 5. CSV 한 줄 출력
-        // errors,attempts,success_rate,mean_us,median_us,p05_us,p95_us,stddev_us
         printf("%d,%d,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
             err, NUM_TRIALS, success_rate,
             mean, median, p05, p95, stddev);
