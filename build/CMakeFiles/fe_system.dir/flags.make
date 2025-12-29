@@ -6,5 +6,5 @@ C_DEFINES =
 
 C_INCLUDES = @CMakeFiles/fe_system.dir/includes_C.rsp
 
-C_FLAGS = -g -std=gnu99
+C_FLAGS = -O3 -DNDEBUG -O2 -DNDEBUG
 

@@ -1,89 +1,156 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include "fe_api.h"       // 우리가 만든 API 헤더
-#include "fe_core.h"      // ★ 핵심! 여기에 FE_KEY_LEN 정의가 들어있습니다.
-#include "bch_wrapper.h"  // 사이즈 상수(FE_DATA_BYTES 등) 사용
+#include <math.h>
+#include <windows.h> // 고정밀 타이머용 (Windows)
 
-// 색상 매크로
-#define COL_GREEN   "\033[1;32m"
-#define COL_RED     "\033[1;31m"
-#define COL_RESET   "\033[0m"
+#include "fe_api.h"
+#include "bch_wrapper.h"
 
-void print_result(const char* title, int ret) {
-    printf("[%s] Result: ", title);
-    if (ret == FE_SUCCESS) {
-        printf(COL_GREEN "SUCCESS (0)" COL_RESET "\n");
-    } else {
-        printf(COL_RED "FAIL (%d)" COL_RESET "\n", ret);
-    }
+// ---------------------------------------------------------
+// [설정] 팀원 요청 사항 반영
+// ---------------------------------------------------------
+#define MAX_ERRORS  63    // 0 ~ 63 비트 에러까지 측정
+#define NUM_TRIALS  100   // 반복 횟수 100회
+
+// ---------------------------------------------------------
+// [유틸리티] 시간 측정 및 통계
+// ---------------------------------------------------------
+// 윈도우 고정밀 타이머 주파수
+double pc_freq = 0.0;
+int64_t timer_start = 0;
+
+void timer_init() {
+    LARGE_INTEGER li;
+    if(!QueryPerformanceFrequency(&li))
+        printf("QueryPerformanceFrequency failed!\n");
+    pc_freq = (double)li.QuadPart / 1000000.0; // 마이크로초(us) 단위
 }
 
-int main() {
-    printf("============================================\n");
-    printf("      Fuzzy Extractor API Test\n");
-    printf("============================================\n");
+void timer_tic() {
+    LARGE_INTEGER li;
+    QueryPerformanceCounter(&li);
+    timer_start = li.QuadPart;
+}
 
-    // 1. 변수 준비
-    uint8_t input[FE_DATA_BYTES] = {0}; // 테스트용 000... 데이터
+double timer_toc() {
+    LARGE_INTEGER li;
+    QueryPerformanceCounter(&li);
+    return (double)(li.QuadPart - timer_start) / pc_freq;
+}
+
+// 정렬을 위한 비교 함수 (qsort용)
+int compare_doubles(const void *a, const void *b) {
+    double arg1 = *(const double *)a;
+    double arg2 = *(const double *)b;
+    if (arg1 < arg2) return -1;
+    if (arg1 > arg2) return 1;
+    return 0;
+}
+
+// ---------------------------------------------------------
+// [유틸리티] 노이즈 주입
+// ---------------------------------------------------------
+void inject_random_noise(uint8_t *data, int len, int error_cnt) {
+    if (error_cnt <= 0) return;
+    
+    // 단순화를 위해 랜덤 위치 비트 반전 (중복 위치 허용 안함 로직 추가 가능하지만 성능상 단순화)
+    // 여기서는 정확한 개수를 위해 Fisher-Yates 셔플 방식 사용
+    int total_bits = len * 8;
+    int *indices = (int*)malloc(total_bits * sizeof(int));
+    for(int i=0; i<total_bits; i++) indices[i] = i;
+
+    // 섞기
+    for(int i=total_bits-1; i>0; i--) {
+        int j = rand() % (i+1);
+        int t = indices[i]; indices[i] = indices[j]; indices[j] = t;
+    }
+
+    // 앞에서부터 error_cnt 개수만큼 반전
+    for(int i=0; i<error_cnt; i++) {
+        int bit_idx = indices[i];
+        data[bit_idx / 8] ^= (1 << (bit_idx % 8));
+    }
+    free(indices);
+}
+
+// ---------------------------------------------------------
+// MAIN
+// ---------------------------------------------------------
+int main() {
+    // 1. 초기화
+    srand(12345); // 재현 가능성을 위해 시드 고정
+    timer_init();
+    
+    // 변수 준비
+    uint8_t input[FE_DATA_BYTES];
+    uint8_t noisy_input[FE_DATA_BYTES];
     uint8_t helper[FE_ECC_BYTES];
     uint8_t key_org[FE_KEY_LEN];
     uint8_t key_rec[FE_KEY_LEN];
-
     size_t h_len = FE_ECC_BYTES;
     size_t k_len = FE_KEY_LEN;
-    int ret;
-
-    // 더미 데이터 채우기 (패턴: 0xAA)
-    memset(input, 0xAA, FE_DATA_BYTES);
-
-    // ---------------------------------------------------------
-    // TEST 1: 등록 (Enrollment)
-    // ---------------------------------------------------------
-    printf("\n[1] Testing fe_enroll()...\n");
-    ret = fe_enroll(input, FE_DATA_BYTES, helper, &h_len, key_org, &k_len);
-    print_result("Enroll", ret);
-
-    if (ret != FE_SUCCESS) return -1; // 등록 실패하면 뒤에는 테스트 의미 없음
-
-    // ---------------------------------------------------------
-    // TEST 2: 복구 (Reproduction) - 정상 케이스
-    // ---------------------------------------------------------
-    printf("\n[2] Testing fe_reproduce() - Clean Data...\n");
-    // 입력 데이터가 똑같으니 무조건 성공해야 함
-    ret = fe_reproduce(input, FE_DATA_BYTES, helper, h_len, key_rec, &k_len);
-    print_result("Repro(Clean)", ret);
-
-    // 키가 진짜 똑같은지 확인
-    if (memcmp(key_org, key_rec, FE_KEY_LEN) == 0) {
-        printf(" -> Key Check: " COL_GREEN "MATCH" COL_RESET "\n");
-    } else {
-        printf(" -> Key Check: " COL_RED "MISMATCH" COL_RESET "\n");
-    }
-
-    // ---------------------------------------------------------
-    // TEST 3: 복구 (Reproduction) - 노이즈 케이스 (에러 주입)
-    // ---------------------------------------------------------
-    printf("\n[3] Testing fe_reproduce() - Noisy Data (10 bits error)...\n");
     
-    // 데이터 복사 후 에러 10개 주입
-    uint8_t noisy_input[FE_DATA_BYTES];
-    memcpy(noisy_input, input, FE_DATA_BYTES);
-    
-    // 앞에서부터 10비트 반전 시킴
-    for(int i=0; i<10; i++) {
-        noisy_input[i/8] ^= (1 << (i%8));
+    // 2. CSV 헤더 출력 (팀원 요청 포맷)
+    printf("errors,attempts,success_rate,mean_us,median_us,p05_us,p95_us,stddev_us\n");
+
+    // 3. 측정 루프 (Error: 0 ~ 63)
+    for (int err = 0; err <= MAX_ERRORS; err++) {
+        
+        double times[NUM_TRIALS];
+        int success_count = 0;
+
+        for (int t = 0; t < NUM_TRIALS; t++) {
+            // A. 데이터 생성 및 등록 (Enroll)
+            // 매번 새로운 데이터로 실험 (캐시 효과 방지 및 일반화)
+            for(int i=0; i<FE_DATA_BYTES; i++) input[i] = rand() & 0xFF;
+            fe_enroll(input, FE_DATA_BYTES, helper, &h_len, key_org, &k_len);
+
+            // B. 노이즈 주입
+            memcpy(noisy_input, input, FE_DATA_BYTES);
+            inject_random_noise(noisy_input, FE_DATA_BYTES, err);
+
+            // C. 측정 시작 (Reproduce만 측정)
+            timer_tic();
+            int ret = fe_reproduce(noisy_input, FE_DATA_BYTES, helper, h_len, key_rec, &k_len);
+            double elapsed_us = timer_toc();
+
+            // D. 결과 저장
+            times[t] = elapsed_us;
+            if (ret == FE_SUCCESS) success_count++;
+        }
+
+        // 4. 통계 계산
+        // (1) Success Rate
+        double success_rate = (double)success_count / NUM_TRIALS;
+
+        // (2) 정렬 (Median, Percentile 계산용)
+        qsort(times, NUM_TRIALS, sizeof(double), compare_doubles);
+
+        // (3) Mean
+        double sum = 0.0;
+        for(int i=0; i<NUM_TRIALS; i++) sum += times[i];
+        double mean = sum / NUM_TRIALS;
+
+        // (4) Median (50th), P05 (5th), P95 (95th)
+        double median = times[NUM_TRIALS / 2];
+        double p05 = times[(int)(NUM_TRIALS * 0.05)];
+        double p95 = times[(int)(NUM_TRIALS * 0.95)];
+
+        // (5) StdDev
+        double variance_sum = 0.0;
+        for(int i=0; i<NUM_TRIALS; i++) {
+            variance_sum += pow(times[i] - mean, 2);
+        }
+        double stddev = sqrt(variance_sum / NUM_TRIALS);
+
+        // 5. CSV 한 줄 출력
+        // errors,attempts,success_rate,mean_us,median_us,p05_us,p95_us,stddev_us
+        printf("%d,%d,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+            err, NUM_TRIALS, success_rate,
+            mean, median, p05, p95, stddev);
     }
 
-    ret = fe_reproduce(noisy_input, FE_DATA_BYTES, helper, h_len, key_rec, &k_len);
-    print_result("Repro(Noisy)", ret);
-
-    if (memcmp(key_org, key_rec, FE_KEY_LEN) == 0) {
-        printf(" -> Key Check: " COL_GREEN "MATCH" COL_RESET "\n");
-    } else {
-        printf(" -> Key Check: " COL_RED "MISMATCH" COL_RESET "\n");
-    }
-
-    printf("\n============================================\n");
     return 0;
 }

@@ -1,31 +1,31 @@
 [
 {
   "directory": "D:/project/NaiveBiometricAuth/C_Fuzzy/build",
-  "command": "C:\\mingw64\\bin\\gcc.exe  @CMakeFiles/fe_system.dir/includes_C.rsp -g -std=gnu99 -o CMakeFiles\\fe_system.dir\\src\\main.c.obj -c D:\\project\\NaiveBiometricAuth\\C_Fuzzy\\src\\main.c",
+  "command": "C:\\mingw64\\bin\\gcc.exe  @CMakeFiles/fe_system.dir/includes_C.rsp -O3 -DNDEBUG -O2 -DNDEBUG -o CMakeFiles\\fe_system.dir\\src\\main.c.obj -c D:\\project\\NaiveBiometricAuth\\C_Fuzzy\\src\\main.c",
   "file": "D:/project/NaiveBiometricAuth/C_Fuzzy/src/main.c",
   "output": "CMakeFiles/fe_system.dir/src/main.c.obj"
 },
 {
   "directory": "D:/project/NaiveBiometricAuth/C_Fuzzy/build",
-  "command": "C:\\mingw64\\bin\\gcc.exe  @CMakeFiles/fe_system.dir/includes_C.rsp -g -std=gnu99 -o CMakeFiles\\fe_system.dir\\src\\fe_core.c.obj -c D:\\project\\NaiveBiometricAuth\\C_Fuzzy\\src\\fe_core.c",
+  "command": "C:\\mingw64\\bin\\gcc.exe  @CMakeFiles/fe_system.dir/includes_C.rsp -O3 -DNDEBUG -O2 -DNDEBUG -o CMakeFiles\\fe_system.dir\\src\\fe_core.c.obj -c D:\\project\\NaiveBiometricAuth\\C_Fuzzy\\src\\fe_core.c",
   "file": "D:/project/NaiveBiometricAuth/C_Fuzzy/src/fe_core.c",
   "output": "CMakeFiles/fe_system.dir/src/fe_core.c.obj"
 },
 {
   "directory": "D:/project/NaiveBiometricAuth/C_Fuzzy/build",
-  "command": "C:\\mingw64\\bin\\gcc.exe  @CMakeFiles/fe_system.dir/includes_C.rsp -g -std=gnu99 -o CMakeFiles\\fe_system.dir\\src\\bch_wrapper.c.obj -c D:\\project\\NaiveBiometricAuth\\C_Fuzzy\\src\\bch_wrapper.c",
+  "command": "C:\\mingw64\\bin\\gcc.exe  @CMakeFiles/fe_system.dir/includes_C.rsp -O3 -DNDEBUG -O2 -DNDEBUG -o CMakeFiles\\fe_system.dir\\src\\bch_wrapper.c.obj -c D:\\project\\NaiveBiometricAuth\\C_Fuzzy\\src\\bch_wrapper.c",
   "file": "D:/project/NaiveBiometricAuth/C_Fuzzy/src/bch_wrapper.c",
   "output": "CMakeFiles/fe_system.dir/src/bch_wrapper.c.obj"
 },
 {
   "directory": "D:/project/NaiveBiometricAuth/C_Fuzzy/build",
-  "command": "C:\\mingw64\\bin\\gcc.exe  @CMakeFiles/fe_system.dir/includes_C.rsp -g -std=gnu99 -o CMakeFiles\\fe_system.dir\\src\\fe_api.c.obj -c D:\\project\\NaiveBiometricAuth\\C_Fuzzy\\src\\fe_api.c",
+  "command": "C:\\mingw64\\bin\\gcc.exe  @CMakeFiles/fe_system.dir/includes_C.rsp -O3 -DNDEBUG -O2 -DNDEBUG -o CMakeFiles\\fe_system.dir\\src\\fe_api.c.obj -c D:\\project\\NaiveBiometricAuth\\C_Fuzzy\\src\\fe_api.c",
   "file": "D:/project/NaiveBiometricAuth/C_Fuzzy/src/fe_api.c",
   "output": "CMakeFiles/fe_system.dir/src/fe_api.c.obj"
 },
 {
   "directory": "D:/project/NaiveBiometricAuth/C_Fuzzy/build",
-  "command": "C:\\mingw64\\bin\\gcc.exe  @CMakeFiles/fe_system.dir/includes_C.rsp -g -std=gnu99 -o CMakeFiles\\fe_system.dir\\lib\\bch.c.obj -c D:\\project\\NaiveBiometricAuth\\C_Fuzzy\\lib\\bch.c",
+  "command": "C:\\mingw64\\bin\\gcc.exe  @CMakeFiles/fe_system.dir/includes_C.rsp -O3 -DNDEBUG -O2 -DNDEBUG -o CMakeFiles\\fe_system.dir\\lib\\bch.c.obj -c D:\\project\\NaiveBiometricAuth\\C_Fuzzy\\lib\\bch.c",
   "file": "D:/project/NaiveBiometricAuth/C_Fuzzy/lib/bch.c",
   "output": "CMakeFiles/fe_system.dir/lib/bch.c.obj"
 }

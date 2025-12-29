@@ -7,7 +7,7 @@
 			[
 				{
 					"build" : ".",
-					"jsonFile" : "directory-.-Debug-f6f22219c74102c3da70.json",
+					"jsonFile" : "directory-.-Release-f6f22219c74102c3da70.json",
 					"minimumCMakeVersion" : 
 					{
 						"string" : "3.10"
@@ -20,7 +20,7 @@
 					]
 				}
 			],
-			"name" : "Debug",
+			"name" : "Release",
 			"projects" : 
 			[
 				{
@@ -28,7 +28,7 @@
 					[
 						0
 					],
-					"name" : "FuzzyExtractor",
+					"name" : "FE_System",
 					"targetIndexes" : 
 					[
 						0
@@ -40,7 +40,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "fe_system::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-fe_system-Debug-41f92841af0cb85e0d96.json",
+					"jsonFile" : "target-fe_system-Release-c89a8f36b103a963107e.json",
 					"name" : "fe_system",
 					"projectIndex" : 0
 				}

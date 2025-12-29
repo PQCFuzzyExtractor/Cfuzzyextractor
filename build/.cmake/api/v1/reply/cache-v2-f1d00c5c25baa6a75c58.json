@@ -783,7 +783,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "FuzzyExtractor"
+			"value" : "FE_System"
 		},
 		{
 			"name" : "CMAKE_PROJECT_SPDX_LICENSE",
@@ -1188,6 +1188,42 @@
 			],
 			"type" : "BOOL",
 			"value" : "FALSE"
+		},
+		{
+			"name" : "FE_System_BINARY_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "D:/project/NaiveBiometricAuth/C_Fuzzy/build"
+		},
+		{
+			"name" : "FE_System_IS_TOP_LEVEL",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "ON"
+		},
+		{
+			"name" : "FE_System_SOURCE_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "D:/project/NaiveBiometricAuth/C_Fuzzy"
 		},
 		{
 			"name" : "FuzzyExtractor_BINARY_DIR",
