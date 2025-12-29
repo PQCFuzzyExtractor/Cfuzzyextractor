@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(FE_System C)
 
-# Release 빌드 + O2 최적화 + 디버그 비활성화
-set(CMAKE_BUILD_TYPE Release)
-add_compile_options(-O2 -DNDEBUG)
+set(CMAKE_BUILD_TYPE Release)         # Release 빌드 설정
+add_compile_options(-O2 -DNDEBUG)     # 최적화(-O2) & 디버그 끔(-DNDEBUG) 설정
 
 # 헤더 파일 경로
 include_directories(lib src)
